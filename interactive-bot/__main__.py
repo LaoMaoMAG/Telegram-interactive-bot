@@ -34,6 +34,8 @@ from . import (
     welcome_message,
     disable_captcha,
     message_interval,
+    welcome_message_name,
+    customer_service_name_list
 )
 from .utils import delete_message_later
 
@@ -92,12 +94,12 @@ async def _send_media_group_later(context: ContextTypes.DEFAULT_TYPE):
 
 # 延时发送媒体组消息
 async def send_media_group_later(
-    delay: float,
-    chat_id,
-    target_id,
-    media_group_id: int,
-    dir,
-    context: ContextTypes.DEFAULT_TYPE,
+        delay: float,
+        chat_id,
+        target_id,
+        media_group_id: int,
+        dir,
+        context: ContextTypes.DEFAULT_TYPE,
 ):
     name = f"sendmediagroup_{chat_id}_{target_id}_{dir}"
     context.job_queue.run_once(
@@ -120,13 +122,13 @@ def update_user_db(user: telegram.User):
 
 
 async def send_contact_card(
-    chat_id, message_thread_id, user: User, update: Update, context: ContextTypes
+        chat_id, message_thread_id, user: User, update: Update, context: ContextTypes
 ):
     buttons = []
     buttons.append(
         [
             InlineKeyboardButton(
-                f"{'🏆 高级会员' if user.is_premium else '✈️ 普通会员' }",
+                f"{'🏆 高级会员' if user.is_premium else '✈️ 普通会员'}",
                 url=f"https://github.com/MiHaKun/Telegram-interactive-bot",
             )
         ]
@@ -180,7 +182,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         await update.message.reply_html(
-            f"{mention_html(user.id, user.full_name)} 同学：\n\n{welcome_message}"
+            f"{mention_html(user.id, user.full_name)} {welcome_message_name}：\n\n{welcome_message}"
         )
 
 
@@ -205,7 +207,7 @@ async def check_human(update: Update, context: ContextTypes.DEFAULT_TYPE):
         buttons = [
             InlineKeyboardButton(x, callback_data=f"vcode_{x}_{user.id}") for x in codes
         ]
-        button_matrix = [buttons[i : i + 4] for i in range(0, len(buttons), 4)]
+        button_matrix = [buttons[i: i + 4] for i in range(0, len(buttons), 4)]
         sent = await update.message.reply_photo(
             photo,
             f"{mention_html(user.id, user.first_name)}请选择图片中的文字。回答错误将无法联系客服。",
@@ -260,9 +262,9 @@ async def forwarding_message_u2a(update: Update, context: ContextTypes.DEFAULT_T
     u = db.query(User).filter(User.user_id == user.id).first()
     message_thread_id = u.message_thread_id
     if (
-        f := db.query(FormnStatus)
-        .filter(FormnStatus.message_thread_id == message_thread_id)
-        .first()
+            f := db.query(FormnStatus)
+                    .filter(FormnStatus.message_thread_id == message_thread_id)
+                    .first()
     ):
         if f.status == "closed":
             await update.message.reply_html(
@@ -272,7 +274,7 @@ async def forwarding_message_u2a(update: Update, context: ContextTypes.DEFAULT_T
     if not message_thread_id:
         formn = await context.bot.create_forum_topic(
             chat_id,
-            name=f"工单{random.randint(10000,99999)}|{user.full_name}|{user.id}",
+            name=f"工单{random.randint(10000, 99999)}|{user.full_name}|{user.id}",
         )
         message_thread_id = formn.message_thread_id
         u.message_thread_id = message_thread_id
@@ -292,9 +294,9 @@ async def forwarding_message_u2a(update: Update, context: ContextTypes.DEFAULT_T
         # 用户引用了一条消息。我们需要找到这条消息在群组中的id
         reply_in_user_chat = update.message.reply_to_message.message_id
         if (
-            msg_map := db.query(MessageMap)
-            .filter(MessageMap.user_chat_message_id == reply_in_user_chat)
-            .first()
+                msg_map := db.query(MessageMap)
+                        .filter(MessageMap.user_chat_message_id == reply_in_user_chat)
+                        .first()
         ):
             params["reply_to_message_id"] = msg_map.group_chat_message_id
     try:
@@ -309,7 +311,7 @@ async def forwarding_message_u2a(update: Update, context: ContextTypes.DEFAULT_T
             db.add(msg)
             db.commit()
             if update.message.media_group_id != context.user_data.get(
-                "current_media_group_id", 0
+                    "current_media_group_id", 0
             ):
                 context.user_data["current_media_group_id"] = (
                     update.message.media_group_id
@@ -349,73 +351,52 @@ async def forwarding_message_u2a(update: Update, context: ContextTypes.DEFAULT_T
             f"发送失败: {e}\n请联系 @MrMiHa 汇报这个错误。谢谢"
         )
 
-
+# 消息
 async def forwarding_message_a2u(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_user_db(update.effective_user)
     message_thread_id = update.message.message_thread_id
     if not message_thread_id:
-        # general message, ignore
         return
+
+    # 获取目标用户信息
     user_id = 0
     if u := db.query(User).filter(User.message_thread_id == message_thread_id).first():
         user_id = u.user_id
     if not user_id:
-        logger.debug(update.message)
         return
-    if update.message.forum_topic_created:
-        f = FormnStatus(
-            message_thread_id=update.message.message_thread_id, status="opened"
+
+    # 检查对话状态
+    if (f := db.query(FormnStatus).filter(
+            FormnStatus.message_thread_id == message_thread_id).first()) and f.status == "closed":
+        await update.message.reply_html("对话已关闭")
+        return
+
+    # 获取客服信息
+    service_user = update.effective_user
+    service_username = service_user.username
+    button_service_user = service_user.first_name  # 按钮上面的客服名
+
+    # 是否指定客服名
+    if service_username in customer_service_name_list:
+        button_service_user = customer_service_name_list[service_username]
+
+    reply_markup = None
+    if service_username:
+        button = InlineKeyboardButton(
+            text=f"👩🏼‍💻当前客服: {button_service_user}",
+            url=f"https://t.me/{service_username}"
         )
-        db.add(f)
-        db.commit()
-        return
-    if update.message.forum_topic_closed:
-        await context.bot.send_message(
-            user_id, "对话已经结束。对方已经关闭了对话。你的留言将被忽略。"
-        )
-        if (
-            f := db.query(FormnStatus)
-            .filter(FormnStatus.message_thread_id == update.message.message_thread_id)
-            .first()
-        ):
-            f.status = "closed"
-            db.add(f)
-            db.commit()
-        return
-    if update.message.forum_topic_reopened:
-        await context.bot.send_message(user_id, "对方重新打开了对话。可以继续对话了。")
-        if (
-            f := db.query(FormnStatus)
-            .filter(FormnStatus.message_thread_id == update.message.message_thread_id)
-            .first()
-        ):
-            f.status = "opened"
-            db.add(f)
-            db.commit()
-        return
-    if (
-        f := db.query(FormnStatus)
-        .filter(FormnStatus.message_thread_id == message_thread_id)
-        .first()
-    ):
-        if f.status == "closed":
-            await update.message.reply_html(
-                "对话已经结束。希望和对方联系，需要打开对话。"
-            )
-            return
-    chat_id = user_id
-    # 构筑下发送参数
+        reply_markup = InlineKeyboardMarkup([[button]])
+
+    # 构建消息参数
     params = {}
     if update.message.reply_to_message:
-        # 群组中，客服回复了一条消息。我们需要找到这条消息在用户中的id
         reply_in_admin = update.message.reply_to_message.message_id
-        if (
-            msg_map := db.query(MessageMap)
-            .filter(MessageMap.group_chat_message_id == reply_in_admin)
-            .first()
-        ):
+        if (msg_map := db.query(MessageMap).filter(MessageMap.group_chat_message_id == reply_in_admin).first()):
             params["reply_to_message_id"] = msg_map.user_chat_message_id
+
     try:
+        # 处理媒体组消息
         if update.message.media_group_id:
             msg = MediaGroupMesssage(
                 chat_id=update.message.chat.id,
@@ -426,12 +407,8 @@ async def forwarding_message_a2u(update: Update, context: ContextTypes.DEFAULT_T
             )
             db.add(msg)
             db.commit()
-            if update.message.media_group_id != context.application.user_data[
-                user_id
-            ].get("current_media_group_id", 0):
-                context.application.user_data[user_id][
-                    "current_media_group_id"
-                ] = update.message.media_group_id
+            if update.message.media_group_id != context.application.user_data[user_id].get("current_media_group_id", 0):
+                context.application.user_data[user_id]["current_media_group_id"] = update.message.media_group_id
                 await send_media_group_later(
                     5,
                     update.effective_chat.id,
@@ -441,11 +418,52 @@ async def forwarding_message_a2u(update: Update, context: ContextTypes.DEFAULT_T
                     context,
                 )
             return
-        else:
-            chat = await context.bot.get_chat(chat_id)
-            sent_msg = await chat.send_copy(
-                update.effective_chat.id, update.message.id, **params
+
+        # 处理单条消息（新增消息类型判断）
+        chat = await context.bot.get_chat(user_id)
+        message = update.message
+
+        # 文本消息
+        if message.text:
+            sent_msg = await chat.send_message(
+                text=message.text,
+                reply_markup=reply_markup,
+                **params
             )
+        # 图片消息
+        elif message.photo:
+            sent_msg = await chat.send_photo(
+                photo=message.photo[-1].file_id,
+                caption=message.caption,
+                reply_markup=reply_markup,
+                **params
+            )
+        # 文件消息
+        elif message.document:
+            sent_msg = await chat.send_document(
+                document=message.document.file_id,
+                caption=message.caption,
+                reply_markup=reply_markup,
+                **params
+            )
+        # 音频消息
+        elif message.audio:
+            sent_msg = await chat.send_audio(
+                audio=message.audio.file_id,
+                caption=message.caption,
+                reply_markup=reply_markup,
+                **params
+            )
+        # 其他类型消息
+        else:
+            sent_msg = await chat.send_copy(
+                from_chat_id=update.effective_chat.id,
+                message_id=message.message_id,
+                reply_markup=reply_markup,
+                **params
+            )
+
+        # 记录消息映射
         msg_map = MessageMap(
             group_chat_message_id=update.message.id,
             user_chat_message_id=sent_msg.message_id,
@@ -455,9 +473,7 @@ async def forwarding_message_a2u(update: Update, context: ContextTypes.DEFAULT_T
         db.commit()
 
     except Exception as e:
-        await update.message.reply_html(
-            f"发送失败: {e}\n请联系 @MrMiHa 汇报这个错误。谢谢"
-        )
+        await update.message.reply_html(f"发送失败: {e}")
 
 
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -471,9 +487,9 @@ async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_delete_user_messages:
         return
     if (
-        target_user := db.query(User)
-        .filter(User.message_thread_id == update.message.message_thread_id)
-        .first()
+            target_user := db.query(User)
+                    .filter(User.message_thread_id == update.message.message_thread_id)
+                    .first()
     ):
         all_messages_in_user_chat = (
             db.query(MessageMap).filter(MessageMap.user_id == target_user.user_id).all()

@@ -21,6 +21,7 @@ load_dotenv()
 bot_token = os.getenv("BOT_TOKEN") or exit("BOT_TOKEN 未填写")
 app_name = os.getenv("APP_NAME") or exit("APP_NAME 未填写")
 welcome_message = os.getenv("WELCOME_MESSAGE") or "欢迎使用本机器人"
+welcome_message_name = os.getenv("WELCOME_MESSAGE_NAME") or "同学"
 try:
     admin_group_id = int(os.getenv("ADMIN_GROUP_ID")) or exit("ADMIN_GROUP 未填写")
     admin_user_ids = [
@@ -34,3 +35,7 @@ is_delete_topic_as_ban_forever = os.getenv("DELETE_TOPIC_AS_FOREVER_BAN") == "TR
 is_delete_user_messages = os.getenv("DELETE_USER_MESSAGE_ON_CLEAR_CMD") == "TRUE"
 disable_captcha = os.getenv("DISABLE_CAPTCHA") == "TRUE"
 message_interval = int(os.getenv("MESSAGE_INTERVAL", 5))
+
+# 读取客服名列表
+with open("customer_service_name_list.json", "r", encoding="utf-8") as file:
+    customer_service_name_list = json.load(file)

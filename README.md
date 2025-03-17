@@ -1,6 +1,23 @@
 # Telegram interactive bot (Telegram 双向机器人)
 
 ## 一、简介
+> **当前仓库项目还在修改调试中，暂时不能使用，若要使用请前往原作者仓库！**
+
+> **本项目为二次修改的项目，遵循 Apache2.0 开源协议，将修改部分二次开源，并沿用 Apache2.0 开源协议**
+
+- **二改者主页:** https://github.com/LaoMaoMAG/
+- **原作者主页:** https://github.com/MiHaKun/
+- **二改者仓库:** https://github.com/LaoMaoMAG/Telegram-interactive-bot
+- **原作者仓库:** https://github.com/MiHaKun/Telegram-interactive-bot
+
+由于 "团伙" 的业务需求，实际体验原项目并线上部署后，确认了该项目的可用和实用性。不过也有些美中不足，所以拉取了该项目的分支进行二次修改，按照实际需求增加了可能缺失部分的功能。
+
+**目前修改的功能**
+- 欢迎消息的问候称呼可在配置文件修改。
+- 客户收到的客服消息下增加了对应发消息的客服名显示（点击可转跳对应客服的私聊）。
+- 可在"customer_service_name_list.json"配置文件设定对应 id 的客服名，不填默认为客服的用户昵称。
+
+
 Telegram的开源双向机器人。避免垃圾信息；让被限制的客户可以顺利联系到你。
 支持后台多客服。在后台群组，可以安排多个客服以同一个机器人身份持续和客户沟通。
 
